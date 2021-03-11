@@ -73,7 +73,7 @@ final class ConfusedTool(
       .addRepositories(Repositories.central) // appending Maven Central again, but not ivy2Local
       .withCache(cache)
 
-  def findAllMissingGroupIds(rootDependencies: Seq[Dependency]): MissingGroupIdsResult = {
+  def findAllMissingGroupIds(rootDependencies: Seq[Dependency]): ConfusedResult = {
     val confused: Confused = new Confused(resolve, publicComplete)
     confused.findAllMissingGroupIds(rootDependencies)
   }
@@ -93,7 +93,7 @@ object ConfusedTool {
     val config: Config = ConfigFactory.load()
     val confusedTool: ConfusedTool = ConfusedTool.from(config)
 
-    val missingGroupIdsResult: MissingGroupIdsResult = confusedTool.findAllMissingGroupIds(rootDeps)
+    val missingGroupIdsResult: ConfusedResult = confusedTool.findAllMissingGroupIds(rootDeps)
 
     missingGroupIdsResult.allGroupIds.foreach { groupId =>
       println(s"Analyzing group ID: $groupId")
@@ -109,9 +109,9 @@ object ConfusedTool {
 
   def from(config: Config): ConfusedTool = {
     val cacheLocation: File = new File(config.getString("filecache.location"))
-    val ttlInHours: Int = config.getInt("filecache.ttlInHours")
+    val ttl: Duration = Duration(config.getString("filecache.ttl"))
 
-    val cache: Cache[Task] = FileCache().withLocation(cacheLocation).withTtl(ttlInHours.hours)
+    val cache: Cache[Task] = FileCache().withLocation(cacheLocation).withTtl(ttl)
 
     val privateRepositories: Seq[Repository] =
       config.getStringList("privateRepositories").asScala.toSeq.map(parseRepository)

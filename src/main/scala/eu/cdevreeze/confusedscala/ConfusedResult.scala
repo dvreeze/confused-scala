@@ -19,11 +19,11 @@ package eu.cdevreeze.confusedscala
 import coursier.core.Organization
 
 /**
- * Data carrier for missing group ID results.
+ * Data carrier for confused-scala results.
  *
  * @author Chris de Vreeze
  */
-final case class MissingGroupIdsResult(allGroupIds: Seq[Organization], missingGroupIds: Seq[Organization]) {
+final case class ConfusedResult(allGroupIds: Seq[Organization], missingGroupIds: Seq[Organization]) {
   require(
     missingGroupIds.toSet.subsetOf(allGroupIds.toSet),
     s"Corrupt data. Not all missing group IDs belong to all group IDs")

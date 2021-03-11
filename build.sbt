@@ -29,7 +29,7 @@ lazy val commonSettings = Seq(
 
   libraryDependencies += "com.typesafe" % "config" % "1.4.1",
 
-  libraryDependencies += "io.get-coursier" %% "coursier" % "2.0.7"
+  libraryDependencies += "io.get-coursier" %% "coursier" % "2.0.12"
 )
 
 lazy val root = project.in(file("."))
