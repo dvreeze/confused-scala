@@ -39,11 +39,11 @@ final class Confused(val resolve: Resolve[Task], val publicComplete: Complete[Ta
 
   def findAllDependencies(rootDependencies: Seq[Dependency]): Seq[Dependency] = {
     val resolution: Resolution = resolve.withDependencies(rootDependencies).run()
-    resolution.dependencies.toSeq.sortBy(_.moduleVersion.toString)
+    resolution.dependencies.toSeq.sortBy(d => (d.module.toString, d.version))
   }
 
   def findDirectMissingGroupIds(dependencies: Seq[Dependency]): ConfusedResult = {
-    val groupIds: Seq[Organization] = dependencies.map(_.module.organization).distinct
+    val groupIds: Seq[Organization] = dependencies.map(_.module.organization).distinct.sorted
 
     val confusedResults: Seq[(Organization, Complete.Result)] = groupIds.map { groupId =>
       val completionResult: Complete.Result = publicComplete.withInput(groupId.value + ":").result().unsafeRun()

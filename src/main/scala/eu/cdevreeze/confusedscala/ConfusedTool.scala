@@ -19,7 +19,6 @@ package eu.cdevreeze.confusedscala
 import java.io.File
 
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 import com.typesafe.config.Config
@@ -28,8 +27,12 @@ import coursier._
 import coursier.cache.Cache
 import coursier.cache.FileCache
 import coursier.complete.Complete
+import coursier.core.Configuration
+import coursier.params.ResolutionParams
 import coursier.parse.DependencyParser
+import coursier.parse.ModuleParser
 import coursier.util.Task
+import eu.cdevreeze.confusedscala.internal.ConfigWrapper._
 
 /**
  * Tool that finds all dependencies of a given dependency, and that reports which ones do not have any group ID
@@ -50,7 +53,8 @@ import coursier.util.Task
 final class ConfusedTool(
     val cache: Cache[Task],
     val privateRepositories: Seq[Repository],
-    val extraPublicRepositories: Seq[Repository]) {
+    val extraPublicRepositories: Seq[Repository],
+    val resolutionParams: ResolutionParams) {
 
   require(
     privateRepositories.intersect(extraPublicRepositories).isEmpty,
@@ -66,12 +70,14 @@ final class ConfusedTool(
     .addRepositories(extraPublicRepositories: _*)
     .addRepositories(Repositories.central) // appending Maven Central again, but not ivy2Local
     .withCache(cache)
+    .withResolutionParams(resolutionParams)
 
   val publicComplete: Complete[Task] =
     Complete()
       .withRepositories(extraPublicRepositories)
       .addRepositories(Repositories.central) // appending Maven Central again, but not ivy2Local
       .withCache(cache)
+      .withScalaVersionOpt(resolutionParams.scalaVersionOpt)
 
   def findAllMissingGroupIds(rootDependencies: Seq[Dependency]): ConfusedResult = {
     val confused: Confused = new Confused(resolve, publicComplete)
@@ -82,25 +88,23 @@ final class ConfusedTool(
 object ConfusedTool {
 
   def main(args: Array[String]): Unit = {
-    require(args.length >= 2, s"Usage: ConfusedTool <default Scala version> <groupId:artifactId:version> ...")
-
-    val defaultScalaVersion = args(0)
-    val rootDeps: Seq[Dependency] = args.toSeq
-      .drop(1)
-      .map(s => DependencyParser.dependency(s, defaultScalaVersion))
-      .collect { case Right(dep) => dep }
+    require(args.length >= 1, s"Usage: ConfusedTool <groupId:artifactId:version> ...")
 
     val config: Config = ConfigFactory.load()
     val confusedTool: ConfusedTool = ConfusedTool.from(config)
 
-    val missingGroupIdsResult: ConfusedResult = confusedTool.findAllMissingGroupIds(rootDeps)
+    val defaultScalaVersion: String = config.getString("shared.scala-version") // mandatory
 
-    missingGroupIdsResult.allGroupIds.foreach { groupId =>
+    val rootDeps: Seq[Dependency] = args.toSeq.map(parseDependency(_, defaultScalaVersion))
+
+    val confusedResult: ConfusedResult = confusedTool.findAllMissingGroupIds(rootDeps)
+
+    confusedResult.allGroupIds.foreach { groupId =>
       println(s"Analyzing group ID: $groupId")
     }
 
     println()
-    missingGroupIdsResult.missingGroupIds
+    confusedResult.missingGroupIds
       .tap(groupIds => if (groupIds.isEmpty) println(s"No missing publicly available group IDs"))
       .foreach { groupId =>
         println(s"Missing publicly available group ID: $groupId")
@@ -108,18 +112,25 @@ object ConfusedTool {
   }
 
   def from(config: Config): ConfusedTool = {
-    val cacheLocation: File = new File(config.getString("filecache.location"))
-    val ttl: Duration = Duration(config.getString("filecache.ttl"))
+    val cacheLocationOpt: Option[File] = config.wrap.getOptString("filecache.location").map(new File(_))
+    val cacheTtlOpt: Option[Duration] = config.wrap.getOptString("filecache.ttl").map(Duration(_))
 
-    val cache: Cache[Task] = FileCache().withLocation(cacheLocation).withTtl(ttl)
+    // TODO Credentials etc.
+
+    val cache: Cache[Task] = FileCache[Task]()
+      .pipe(acc => cacheLocationOpt.map(v => acc.withLocation(v)).getOrElse(acc))
+      .pipe(acc => cacheTtlOpt.map(v => acc.withTtl(v)).getOrElse(acc))
 
     val privateRepositories: Seq[Repository] =
-      config.getStringList("privateRepositories").asScala.toSeq.map(parseRepository)
+      config.wrap.getOptStringSeq("private-repositories").map(_.map(parseRepository)).getOrElse(Seq.empty)
 
     val extraPublicRepositories: Seq[Repository] =
-      config.getStringList("extraPublicRepositories").asScala.toSeq.map(parseRepository)
+      config.wrap.getOptStringSeq("extra-public-repositories").map(_.map(parseRepository)).getOrElse(Seq.empty)
 
-    new ConfusedTool(cache, privateRepositories, extraPublicRepositories)
+    val resolutionParams: ResolutionParams =
+      parseResolutionParams(config.getConfig("resolve"), config.getConfig("shared"))
+
+    new ConfusedTool(cache, privateRepositories, extraPublicRepositories, resolutionParams)
   }
 
   private def parseRepository(repoString: String): Repository = {
@@ -129,5 +140,56 @@ object ConfusedTool {
       case "central"   => Repositories.central
       case s           => MavenRepository(s)
     }
+  }
+
+  private def parseResolutionParams(specificConfig: Config, sharedConfig: Config): ResolutionParams = {
+    val scalaVersion: String = sharedConfig.getString("scala-version") // mandatory
+    val forceScalaVersionOpt: Option[Boolean] = sharedConfig.wrap.getOptBoolean("force-scala-version")
+
+    val cfgOpt: Option[Configuration] = specificConfig.wrap.getOptString("default-configuration").map(Configuration(_))
+    val exclusions: Seq[(Organization, ModuleName)] =
+      specificConfig.wrap.getOptStringSeq("exclude").map(_.map(parseModule(_, scalaVersion))).getOrElse(Seq.empty)
+
+    val forcedPropertiesOpt: Option[Map[String, String]] =
+      specificConfig.wrap.getOptMap("force-pom-properties").map(_.view.mapValues(_.asInstanceOf[String]).toMap)
+
+    val propertiesOpt: Option[Map[String, String]] =
+      specificConfig.wrap.getOptMap("pom-properties").map(_.view.mapValues(_.asInstanceOf[String]).toMap)
+
+    val forcedVersions: Seq[Dependency] = specificConfig.wrap
+      .getOptStringSeq("force-versions")
+      .map(_.map(parseDependency(_, scalaVersion)))
+      .getOrElse(Seq.empty)
+
+    val keepOptionalOpt: Option[Boolean] = specificConfig.wrap.getOptBoolean("keep-optional")
+    val maxIterationsOpt: Option[Int] = specificConfig.wrap.getOptInt("max-iterations")
+    val profilesOpt: Option[Seq[String]] = specificConfig.wrap.getOptStringSeq("profiles")
+
+    // No JDK version, OS info, use system JDK version, use system OS info, typelevel
+
+    // TODO Reconciliation, rules
+
+    ResolutionParams()
+      .pipe(acc => cfgOpt.map(v => acc.withScalaVersion(scalaVersion)).getOrElse(acc))
+      .pipe(acc => cfgOpt.map(v => acc.withForceScalaVersionOpt(forceScalaVersionOpt)).getOrElse(acc))
+      .pipe(acc => cfgOpt.map(v => acc.withDefaultConfiguration(v)).getOrElse(acc))
+      .withExclusions(exclusions.toSet)
+      .pipe(acc => forcedPropertiesOpt.map(v => acc.withForcedProperties(v)).getOrElse(acc))
+      .pipe(acc => propertiesOpt.map(v => acc.withProperties(v.toSeq.sorted)).getOrElse(acc))
+      .withForceVersion(forcedVersions.map(d => d.module -> d.version).toMap)
+      .pipe(acc => keepOptionalOpt.map(v => acc.withKeepOptionalDependencies(v)).getOrElse(acc))
+      .pipe(acc => maxIterationsOpt.map(v => acc.withMaxIterations(v)).getOrElse(acc))
+      .pipe(acc => profilesOpt.map(v => acc.withProfiles(v.toSet)).getOrElse(acc))
+  }
+
+  private def parseDependency(s: String, scalaVersion: String): Dependency = {
+    DependencyParser.dependency(s, scalaVersion).getOrElse(sys.error(s"Could not parse dependency '$s'"))
+  }
+
+  private def parseModule(s: String, scalaVersion: String): (Organization, ModuleName) = {
+    ModuleParser
+      .module(s, scalaVersion)
+      .getOrElse(sys.error(s"Could not parse module '$s'"))
+      .pipe(m => (m.organization, m.name))
   }
 }

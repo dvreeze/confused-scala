@@ -27,9 +27,9 @@ lazy val commonSettings = Seq(
   pomExtra := pomData,
   pomIncludeRepository := { _ => false },
 
-  libraryDependencies += "com.typesafe" % "config" % "1.4.1",
+  libraryDependencies += "io.get-coursier" %% "coursier" % "2.0.12",
 
-  libraryDependencies += "io.get-coursier" %% "coursier" % "2.0.12"
+  libraryDependencies += "com.typesafe" % "config" % "1.4.1"
 )
 
 lazy val root = project.in(file("."))
