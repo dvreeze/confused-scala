@@ -79,9 +79,9 @@ final class ConfusedTool(
       .withCache(cache)
       .withScalaVersionOpt(resolutionParams.scalaVersionOpt)
 
-  def findAllMissingGroupIds(rootDependencies: Seq[Dependency]): ConfusedResult = {
+  def findAllGroupIdsMissingInPublicRepositories(rootDependencies: Seq[Dependency]): ConfusedResult = {
     val confused: Confused = new Confused(resolve, publicComplete)
-    confused.findAllMissingGroupIds(rootDependencies)
+    confused.findAllGroupIdsMissingInPublicRepositories(rootDependencies)
   }
 }
 
@@ -91,24 +91,40 @@ object ConfusedTool {
     require(args.length >= 1, s"Usage: ConfusedTool <groupId:artifactId:version> ...")
 
     val config: Config = ConfigFactory.load()
+
+    val extraTrustedGroupIds: Set[Organization] =
+      config.wrap.getOptStringSeq("extra-trusted-group-ids").map(_.map(Organization(_)).toSet).getOrElse(Set.empty)
+    val errorOnNonEmptyResult: Boolean = config.wrap.getOptBoolean("error-on-non-empty-result").getOrElse(false)
+    val trustOwnGroupIds: Boolean = config.wrap.getOptBoolean("trust-own-group-ids").getOrElse(false)
+
     val confusedTool: ConfusedTool = ConfusedTool.from(config)
 
     val defaultScalaVersion: String = config.getString("shared.scala-version") // mandatory
 
     val rootDeps: Seq[Dependency] = args.toSeq.map(parseDependency(_, defaultScalaVersion))
+    val trustedGroupIds: Set[Organization] =
+      extraTrustedGroupIds.union(rootDeps.map(_.module.organization).filter(_ => trustOwnGroupIds).toSet)
 
-    val confusedResult: ConfusedResult = confusedTool.findAllMissingGroupIds(rootDeps)
+    // Do the work
+    val confusedResult: ConfusedResult = confusedTool.findAllGroupIdsMissingInPublicRepositories(rootDeps)
 
     confusedResult.allGroupIds.foreach { groupId =>
-      println(s"Analyzing group ID: $groupId")
+      println(s"Analyzing group ID: ${groupId.value}")
     }
 
     println()
     confusedResult.missingGroupIds
-      .tap(groupIds => if (groupIds.isEmpty) println(s"No missing publicly available group IDs"))
+      .tap(groupIds => if (groupIds.isEmpty) println(s"All analyzed group IDs occur in public repositories"))
       .foreach { groupId =>
-        println(s"Missing publicly available group ID: $groupId")
+        val extraMsg: String = if (trustedGroupIds.contains(groupId)) "(but it is trusted/ignored)" else ""
+        println(s"Group ID that does not occur in any of the public repositories: ${groupId.value} $extraMsg".trim)
       }
+
+    val exitWithError: Boolean = errorOnNonEmptyResult && !confusedResult.missingGroupIds.forall(trustedGroupIds)
+
+    if (exitWithError) {
+      System.exit(1)
+    }
   }
 
   def from(config: Config): ConfusedTool = {
@@ -146,7 +162,8 @@ object ConfusedTool {
     val scalaVersion: String = sharedConfig.getString("scala-version") // mandatory
     val forceScalaVersionOpt: Option[Boolean] = sharedConfig.wrap.getOptBoolean("force-scala-version")
 
-    val cfgOpt: Option[Configuration] = specificConfig.wrap.getOptString("default-configuration").map(Configuration(_))
+    val defaultConfigurationOpt: Option[Configuration] =
+      specificConfig.wrap.getOptString("default-configuration").map(Configuration(_))
     val exclusions: Seq[(Organization, ModuleName)] =
       specificConfig.wrap.getOptStringSeq("exclude").map(_.map(parseModule(_, scalaVersion))).getOrElse(Seq.empty)
 
@@ -156,7 +173,7 @@ object ConfusedTool {
     val propertiesOpt: Option[Map[String, String]] =
       specificConfig.wrap.getOptMap("pom-properties").map(_.view.mapValues(_.asInstanceOf[String]).toMap)
 
-    val forcedVersions: Seq[Dependency] = specificConfig.wrap
+    val forceVersions: Seq[Dependency] = specificConfig.wrap
       .getOptStringSeq("force-versions")
       .map(_.map(parseDependency(_, scalaVersion)))
       .getOrElse(Seq.empty)
@@ -166,17 +183,16 @@ object ConfusedTool {
     val profilesOpt: Option[Seq[String]] = specificConfig.wrap.getOptStringSeq("profiles")
 
     // No JDK version, OS info, use system JDK version, use system OS info, typelevel
-
-    // TODO Reconciliation, rules
+    // Also no reconciliation, rules. After all, this tool is not about version reconciliation and cleaning up builds.
 
     ResolutionParams()
-      .pipe(acc => cfgOpt.map(v => acc.withScalaVersion(scalaVersion)).getOrElse(acc))
-      .pipe(acc => cfgOpt.map(v => acc.withForceScalaVersionOpt(forceScalaVersionOpt)).getOrElse(acc))
-      .pipe(acc => cfgOpt.map(v => acc.withDefaultConfiguration(v)).getOrElse(acc))
+      .withScalaVersion(scalaVersion)
+      .pipe(acc => forceScalaVersionOpt.map(v => acc.withForceScalaVersion(v)).getOrElse(acc))
+      .pipe(acc => defaultConfigurationOpt.map(v => acc.withDefaultConfiguration(v)).getOrElse(acc))
       .withExclusions(exclusions.toSet)
       .pipe(acc => forcedPropertiesOpt.map(v => acc.withForcedProperties(v)).getOrElse(acc))
       .pipe(acc => propertiesOpt.map(v => acc.withProperties(v.toSeq.sorted)).getOrElse(acc))
-      .withForceVersion(forcedVersions.map(d => d.module -> d.version).toMap)
+      .withForceVersion(forceVersions.map(d => d.module -> d.version).toMap)
       .pipe(acc => keepOptionalOpt.map(v => acc.withKeepOptionalDependencies(v)).getOrElse(acc))
       .pipe(acc => maxIterationsOpt.map(v => acc.withMaxIterations(v)).getOrElse(acc))
       .pipe(acc => profilesOpt.map(v => acc.withProfiles(v.toSet)).getOrElse(acc))

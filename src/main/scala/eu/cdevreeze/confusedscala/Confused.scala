@@ -32,9 +32,9 @@ final class Confused(val resolve: Resolve[Task], val publicComplete: Complete[Ta
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  def findAllMissingGroupIds(rootDependencies: Seq[Dependency]): ConfusedResult = {
+  def findAllGroupIdsMissingInPublicRepositories(rootDependencies: Seq[Dependency]): ConfusedResult = {
     val deps: Seq[Dependency] = findAllDependencies(rootDependencies)
-    findDirectMissingGroupIds(deps)
+    findDirectGroupIdsMissingInPublicRepositories(deps)
   }
 
   def findAllDependencies(rootDependencies: Seq[Dependency]): Seq[Dependency] = {
@@ -42,7 +42,7 @@ final class Confused(val resolve: Resolve[Task], val publicComplete: Complete[Ta
     resolution.dependencies.toSeq.sortBy(d => (d.module.toString, d.version))
   }
 
-  def findDirectMissingGroupIds(dependencies: Seq[Dependency]): ConfusedResult = {
+  def findDirectGroupIdsMissingInPublicRepositories(dependencies: Seq[Dependency]): ConfusedResult = {
     val groupIds: Seq[Organization] = dependencies.map(_.module.organization).distinct.sorted
 
     val confusedResults: Seq[(Organization, Complete.Result)] = groupIds.map { groupId =>
