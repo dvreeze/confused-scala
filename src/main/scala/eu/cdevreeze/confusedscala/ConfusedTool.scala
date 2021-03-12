@@ -42,8 +42,8 @@ import eu.cdevreeze.confusedscala.internal.ConfigWrapper._
  * See the example config file in the resources directory. System properties like config.file, config.resource (for classpath
  * resources) or config.url can be used to refer to an application configuration file.
  *
- * As a program the tool takes at least 2 parameters. The first one is the default Scala version. The remaining ones are
- * root dependencies in the form groupId:artifactId:version or groupId::artifactName:version.
+ * As a program the tool takes at least 1 parameter. All parameters are root dependencies in the form
+ * groupId:artifactId:version or groupId::artifactName:version.
  *
  * The program should not use both the local Ivy2 repository and the local Maven repository (as private repositories),
  * but this is not checked. Preferably the local Maven repository is not used.
