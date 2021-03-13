@@ -38,15 +38,16 @@ import eu.cdevreeze.confusedscala.internal.ConfigWrapper._
  * Tool that finds all dependencies of a given dependency, and that reports which ones do not have any group ID
  * that is also in a public repository.
  *
- * Lightbend Config is used to configure the tool, w.r.t. private and public repositories, caching etc.
- * See the example config file in the resources directory. System properties like config.file, config.resource (for classpath
- * resources) or config.url can be used to refer to an application configuration file.
+ * In the companion object, Lightbend Config is used to create and configure the tool, w.r.t. private and public repositories, caching etc.
+ * See [[https://github.com/dvreeze/confused-scala/blob/master/src/main/resources/example-application.conf]].
+ * System properties like config.file, config.resource (for classpath resources) or config.url can be used to refer to an
+ * application configuration file.
  *
  * As a program the tool takes at least 1 parameter. All parameters are root dependencies in the form
  * groupId:artifactId:version or groupId::artifactName:version.
  *
  * The program should not use both the local Ivy2 repository and the local Maven repository (as private repositories),
- * but this is not checked. Preferably the local Maven repository is not used.
+ * but this is not checked. Preferably the local Maven repository is not used at all.
  *
  * @author Chris de Vreeze
  */
@@ -79,6 +80,11 @@ final class ConfusedTool(
       .withCache(cache)
       .withScalaVersionOpt(resolutionParams.scalaVersionOpt)
 
+  /**
+   * This is the main method containing all functionality of the Confused-Scala tool, including setting up a "Resolve" and
+   * "Complete" instance, to pass to the "Confused" instance that does the work. Indeed, this method calls method
+   * findAllGroupIdsMissingInPublicRepositories on that "Confused" instance.
+   */
   def findAllGroupIdsMissingInPublicRepositories(rootDependencies: Seq[Dependency]): ConfusedResult = {
     val confused: Confused = new Confused(resolve, publicComplete)
     confused.findAllGroupIdsMissingInPublicRepositories(rootDependencies)
