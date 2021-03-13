@@ -37,7 +37,7 @@ as if they were the "cs" command themselves.
 
 Then the Confused-Scala tool can be invoked as follows::
 
-    /path/to/coursier-jar-launcher eu.cdevreeze.confused-scala:confused-scala_2.13:0.2.0 \
+    /path/to/coursier-jar-launcher launch eu.cdevreeze.confused-scala:confused-scala_2.13:0.2.0 \
       --java-opt -Dconfig.file=/path/to/app.conf -- <dep>
 
 where <dep> (possibly more than one such program argument, space-separated) could be a dependency like::
