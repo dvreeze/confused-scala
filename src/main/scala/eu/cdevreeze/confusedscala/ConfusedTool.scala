@@ -129,6 +129,7 @@ object ConfusedTool {
     val exitWithError: Boolean = errorOnNonEmptyResult && !confusedResult.missingGroupIds.forall(trustedGroupIds)
 
     if (exitWithError) {
+      println("Failing with exit code 1")
       System.exit(1)
     }
   }
