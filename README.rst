@@ -15,7 +15,7 @@ Usage
 
 Confused-Scala can be used as a program, or as an API. It can be added as a dependency as follows in an SBT build::
 
-    libraryDependencies += "eu.cdevreeze.confused-scala" %% "confused-scala" % "0.1.0"
+    libraryDependencies += "eu.cdevreeze.confused-scala" %% "confused-scala" % "0.2.0"
 
 It is available only for Scala 2.13.
 
@@ -37,7 +37,7 @@ as if they were the "cs" command themselves.
 
 Then the Confused-Scala tool can be invoked as follows::
 
-    /path/to/coursier-jar-launcher eu.cdevreeze.confused-scala:confused-scala_2.13:0.1.0 \
+    /path/to/coursier-jar-launcher eu.cdevreeze.confused-scala:confused-scala_2.13:0.2.0 \
       --java-opt -Dconfig.file=/path/to/app.conf -- <dep>
 
 where <dep> (possibly more than one such program argument, space-separated) could be a dependency like::
