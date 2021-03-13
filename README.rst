@@ -52,5 +52,4 @@ It is also possible to install the tool as described in `Coursier install`_, usi
 .. _`example-application.conf`: https://github.com/dvreeze/confused-scala/blob/master/src/main/resources/example-application.conf
 .. _`Coursier CLI installation`: https://get-coursier.io/docs/cli-installation
 .. _`Coursier install`: https://get-coursier.io/docs/cli-install
-.. _`channel`: https://github.com/dvreeze/confused-scala/apps/resources/confused-scala.json
-
+.. _`channel`: https://github.com/dvreeze/confused-scala/blob/master/apps/resources/confused-scala.json
