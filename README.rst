@@ -50,7 +50,7 @@ where <dep> (possibly more than one such program argument, space-separated) coul
 
     eu.cdevreeze.tqa::tqa:0.10.0
 
-It is also possible to install the tool as described in `Coursier install`_, using the `channel`_ of the tool.
+It is also possible to install the tool as described in `Coursier install`_, using the `application descriptor`_ of the tool.
 
 In a Maven build, we could easily circumvent the above-mentioned chicken-eff problem. In the build flow, we would first do::
 
@@ -62,7 +62,7 @@ Then the appropriate Confused-Scala tool can be invoked as follows::
       -M eu.cdevreeze.confusedscala.ConfusedToolTakingMavenTgfDependencyTrees \
       --java-opt -Dconfig.file=/path/to/app.conf -- <tgf dependencies input file path>
 
-Again, it is also possible to install the tool as described in `Coursier install`_, using the `TGF channel`_ of the tool.
+Again, it is also possible to install the tool as described in `Coursier install`_, using the `TGF application descriptor`_ of the tool.
 
 .. _`confused`: https://github.com/visma-prodsec/confused
 .. _`Coursier`: https://get-coursier.io/
@@ -71,5 +71,5 @@ Again, it is also possible to install the tool as described in `Coursier install
 .. _`example-application.conf`: https://github.com/dvreeze/confused-scala/blob/master/src/main/resources/example-application.conf
 .. _`Coursier CLI installation`: https://get-coursier.io/docs/cli-installation
 .. _`Coursier install`: https://get-coursier.io/docs/cli-install
-.. _`channel`: https://github.com/dvreeze/confused-scala/blob/master/apps/resources/confused-scala.json
-.. _`TGF channel`: https://github.com/dvreeze/confused-scala/blob/master/apps/resources/confused-scala-maven-tgf.json
+.. _`application descriptor`: https://github.com/dvreeze/confused-scala/blob/master/apps/resources/confused-scala.json
+.. _`TGF application descriptor`: https://github.com/dvreeze/confused-scala/blob/master/apps/resources/confused-scala-maven-tgf.json
