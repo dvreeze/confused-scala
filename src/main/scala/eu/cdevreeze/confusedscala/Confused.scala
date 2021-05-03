@@ -32,6 +32,8 @@ final class Confused(val resolve: Resolve[Task], val publicComplete: Complete[Ta
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  private val confusedWithoutResolve: ConfusedWithoutResolve = new ConfusedWithoutResolve(publicComplete)
+
   /**
    * First calls method findAllDependencies, and then calls method findDirectGroupIdsMissingInPublicRepositories on its results.
    * This is the main method containing all functionality of the Confused-Scala tool, but without the configuration.
@@ -52,27 +54,9 @@ final class Confused(val resolve: Resolve[Task], val publicComplete: Complete[Ta
 
   /**
    * Given the passed dependencies, finds all group IDs of those dependencies that are not found in any of the configured
-   * public repositories. It uses the (configured) "Complete" of this instance to do so.
+   * public repositories. It (indirectly) uses the (configured) "Complete" of this instance to do so.
    */
   def findDirectGroupIdsMissingInPublicRepositories(dependencies: Seq[Dependency]): ConfusedResult = {
-    val groupIds: Seq[Organization] = dependencies.map(_.module.organization).distinct.sorted
-
-    val confusedResults: Seq[(Organization, Complete.Result)] = groupIds.map { groupId =>
-      val completionResult: Complete.Result = publicComplete.withInput(groupId.value + ":").result().unsafeRun()
-      groupId -> completionResult
-    }
-
-    val missingGroupIds: Seq[Organization] =
-      confusedResults
-        .filterNot {
-          _._2.results.exists {
-            case (_, Right(Seq(stringResult, _*))) => true
-            case _                                 => false
-          }
-        }
-        .map(_._1)
-        .distinct
-
-    ConfusedResult(groupIds, missingGroupIds)
+    confusedWithoutResolve.findDirectGroupIdsMissingInPublicRepositories(dependencies)
   }
 }
