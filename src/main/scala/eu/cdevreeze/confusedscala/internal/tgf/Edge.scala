@@ -21,7 +21,7 @@ package eu.cdevreeze.confusedscala.internal.tgf
  *
  * @author Chris de Vreeze
  */
-final case class Edge(from: String, to: String, label: String) {
+final case class Edge(from: String, to: String, labelOption: Option[String]) {
   require(from.nonEmpty, s"Empty source ID not allowed")
   require(to.nonEmpty, s"Empty target ID not allowed")
 }
@@ -33,28 +33,46 @@ object Edge {
   def parse(s: String): Edge = parseOption(s).getOrElse(sys.error(s"Could not parse edge '$s'"))
 
   def parseOption(s: String): Option[Edge] = {
-    val idx1 = s.indexOf(space)
+    val idx = s.indexOf(space)
 
-    if (idx1 < 0) {
+    if (idx < 0) {
       None
     } else {
-      val fromId = s.substring(0, idx1).trim
+      val fromId = s.substring(0, idx).trim
 
-      val remainder = s.substring(idx1 + 1).dropWhile(_ == space)
-
-      val idx2 = remainder.indexOf(space)
-
-      if (idx2 < 0) {
+      if (fromId.isEmpty) {
         None
       } else {
-        val toId = remainder.substring(0, idx2).trim
-        val edgeLabel = remainder.substring(idx2 + 1).dropWhile(_ == space)
+        val remainder = s.substring(idx + 1).dropWhile(_ == space)
 
-        if (fromId.isEmpty || toId.isEmpty || edgeLabel.trim.isEmpty) {
-          None
-        } else {
-          Some(Edge(fromId, toId, edgeLabel))
-        }
+        Remainder.parseRemainderOption(remainder).map(_.toEdge(fromId))
+      }
+    }
+  }
+
+  private[Edge] final case class Remainder(to: String, labelOption: Option[String]) {
+    require(to.nonEmpty, s"Empty target ID not allowed")
+
+    def toEdge(from: String): Edge = Edge(from, to, labelOption)
+  }
+
+  private[Edge] object Remainder {
+
+    def parseRemainderOption(remainder: String): Option[Remainder] = {
+      assert(remainder.takeWhile(_ == space).isEmpty, s"No prefixing spaces allowed")
+
+      val idx = remainder.indexOf(space)
+
+      if (idx < 0) {
+        val toId = remainder.trim
+
+        if (toId.isEmpty) None else Some(Remainder(toId, None))
+      } else {
+        val toId = remainder.substring(0, idx).trim
+        val edgeLabel = remainder.substring(idx + 1).dropWhile(_ == space)
+        val edgeLabelOption = if (edgeLabel.trim.isEmpty) None else Some(edgeLabel)
+
+        if (toId.isEmpty) None else Some(Remainder(toId, edgeLabelOption))
       }
     }
   }

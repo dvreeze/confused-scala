@@ -38,4 +38,8 @@ final case class Graph(nodes: Seq[Node], edges: Seq[Edge]) {
     val edgeNodeIds: Set[String] = edges.map(_.from).toSet.union(edges.map(_.to).toSet)
     edgeNodeIds == nodeIds
   }
+
+  def rootNodeIds: Set[String] = {
+    edges.map(_.from).toSet.diff(edges.map(_.to).toSet)
+  }
 }
