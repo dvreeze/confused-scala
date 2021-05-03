@@ -6,7 +6,7 @@ lazy val commonSettings = Seq(
   name         := "confused-scala",
   description  := "Similar tool as visma-prodsec/confused, for Scala (and Java)",
   organization := "eu.cdevreeze.confused-scala",
-  version      := "0.3.0-SNAPSHOT",
+  version      := "0.3.0",
 
   scalaVersion       := scalaVer,
   crossScalaVersions := crossScalaVer,
