@@ -1,0 +1,11 @@
+{
+  "confused-scala": {
+    "repositories": [
+      "central"
+    ],
+    "dependencies": [
+      "eu.cdevreeze.confused-scala::confused-scala:latest.stable"
+    ],
+    "mainClass": "eu.cdevreeze.confusedscala.ConfusedToolTakingMavenTgfDependencyTrees"
+  }
+}
